@@ -1,0 +1,20 @@
+package com.example.recallapp.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+object Lab {
+    val Bg = Color(0xFFF0F3F7)
+    val Surface = Color(0xFFFFFFFF)
+    val Ink = Color(0xFF1C2B39)
+    val InkSoft = Color(0xFF3D4551)
+    val Muted = Color(0xFF565C65)
+    val Line = Color(0xFFDFE1E2)
+    val Chevron = Color(0xFFA9AEB1)
+    val Hazard = Color(0xFFB50909)
+    val Teal = Color(0xFF005EA2)
+    val TealDark = Color(0xFF162E51)
+    val Mint = Color(0xFFD9E8F6)
+    val Accent = Color(0xFFFFBE2E)
+    val AccentDark = Color(0xFF162E51)
+    val Recalled = Color(0xFFB50909)
+}
