@@ -19,7 +19,7 @@ interface BrainwormApiService {
     suspend fun createRegistryItem(
         @Header("Authorization") token: String,
         @Body item: RegistryItem
-    ): : Response<RegistryItem>
+    ): Response<RegistryItem>
 
     @PUT("registry/{itemId}")
     suspend fun updateRegistryItem(
