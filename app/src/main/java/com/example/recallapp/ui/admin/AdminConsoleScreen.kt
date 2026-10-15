@@ -192,7 +192,6 @@ private fun AdminActionCard(
 private fun AdminConsolePreview() {
     RecallTheme {
         AdminConsoleScreen(
-            //Right now the on manage recalls and on manage users buttons do nothing.
             onBack = {},
             onManageRecalls = {},
             onManageUsers = {},
