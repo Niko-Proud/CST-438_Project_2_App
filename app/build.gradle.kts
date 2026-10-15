@@ -34,8 +34,18 @@ android {
         manifestPlaceholders["appAuthRedirectScheme"] = googleRedirectScheme
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
+            signingConfig = signingConfigs.getByName("debug")
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         }
         release {

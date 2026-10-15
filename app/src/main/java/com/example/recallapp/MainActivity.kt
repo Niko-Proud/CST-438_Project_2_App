@@ -1,4 +1,4 @@
-﻿package com.example.recallapp
+package com.example.recallapp
 
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
@@ -22,12 +22,18 @@ import com.example.recallapp.ui.items.MyItemsScreen
 import com.example.recallapp.ui.login.LoginScreen
 import com.example.recallapp.ui.theme.Lab
 import com.example.recallapp.ui.theme.RecallTheme
+//import com.example.recallapp.ui.AppNavHost
+import com.example.recallapp.ui.theme.RecallTheme
 
+/** Single activity that hosts every Compose screen. */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        //val app = application as RecallApplication
+        //setContent { RecallTheme { AppNavHost(auth = app.auth, tokens = app.tokens) } }
+        
         val allowDemo =
             (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
@@ -76,6 +82,8 @@ private fun AppRoot(allowDemo: Boolean) {
                 }
             }
         }
+        val app = application as RecallApplication
+        setContent { RecallTheme { AppNavHost(auth = app.auth, tokens = app.tokens) } }
     }
 }
 
