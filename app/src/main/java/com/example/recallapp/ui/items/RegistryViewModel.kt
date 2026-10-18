@@ -1,6 +1,10 @@
 package com.example.recallapp.ui.items
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.recallapp.auth.TokenStore
 import com.example.recallapp.data.BrainwormApiService
 import com.example.recallapp.data.RegistryItem
 import com.example.recallapp.data.RetrofitClient
@@ -9,12 +13,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class RegistryViewModel : ViewModel() {
+class RegistryViewModel(private val tokens: TokenStore) : ViewModel() {
     private val api: BrainwormApiService = RetrofitClient.instance
-    private val mockToken = "Bearer mock_token"
+    private val bearerToken: String
+        get() = tokens.bearer() ?: ""
+
     private val _items = MutableStateFlow<List<ItemUi>>(emptyList())
     val items: StateFlow<List<ItemUi>> = _items.asStateFlow()
-
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     private val _isLoadingMore = MutableStateFlow(false)
@@ -40,7 +45,7 @@ class RegistryViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = api.getRegistryItems(mockToken, page = currentPage)
+                val response = api.getRegistryItems(bearerToken, page = currentPage)
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null) {
@@ -68,7 +73,7 @@ class RegistryViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val nextPage = currentPage + 1
-                val response = api.getRegistryItems(mockToken, page = nextPage)
+                val response = api.getRegistryItems(bearerToken, page = nextPage)
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null) {
@@ -88,7 +93,7 @@ class RegistryViewModel : ViewModel() {
         _detailState.value = DetailUiState.Loading
         viewModelScope.launch {
             try {
-                val response = api.getRegistryItem(mockToken, itemId)
+                val response = api.getRegistryItem(bearerToken, itemId)
                 if (response.isSuccessful) {
                     val item = response.body()
                     if (item != null) { _detailState.value = DetailUiState.Success(item.product, item.batch ?: "") }
@@ -108,10 +113,10 @@ class RegistryViewModel : ViewModel() {
             try {
                 val item = RegistryItem(product = product, batch = batch.takeIf { it.isNotBlank() })
                 val response = if (itemId == null) {
-                    api.createRegistryItem(mockToken, item)
+                    api.createRegistryItem(bearerToken, item)
                 }
                 else {
-                    api.updateRegistryItem(mockToken, itemId, item)
+                    api.updateRegistryItem(bearerToken, itemId, item)
                 }
 
                 if (response.isSuccessful) {
@@ -130,7 +135,7 @@ class RegistryViewModel : ViewModel() {
     fun deleteItem(itemId: Long, onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
-                val response = api.deleteRegistryItem(mockToken, itemId)
+                val response = api.deleteRegistryItem(bearerToken, itemId)
                 if (response.isSuccessful) {
                     loadItems()
                     onComplete()
@@ -141,6 +146,12 @@ class RegistryViewModel : ViewModel() {
             } catch (e: Exception) {
                 _detailState.value = DetailUiState.Error(500, "NETWORK ERROR")
             }
+        }
+    }
+
+    companion object {
+        fun factory(tokens: TokenStore): ViewModelProvider.Factory = viewModelFactory {
+            initializer { RegistryViewModel(tokens) }
         }
     }
 }

@@ -44,7 +44,7 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
 
         // The list stays empty until the registry API is connected in the next issue.
         composable(Routes.ITEMS) {
-            val vm: RegistryViewModel = viewModel()
+            val vm: RegistryViewModel = viewModel(factory = RegistryViewModel.factory(tokens))
             val items by vm.items.collectAsState()
             val isLoading by vm.isLoading.collectAsState()
             val isLoadingMore by vm.isLoadingMore.collectAsState()
@@ -71,7 +71,7 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
             val itemIdStr = backStackEntry.arguments?.getString("itemId")
             val itemId = itemIdStr?.toLongOrNull() ?: -1L
             val isCreatingNew = itemId == -1L
-            val vm: RegistryViewModel = viewModel()
+            val vm: RegistryViewModel = viewModel(factory = RegistryViewModel.factory(tokens))
             val uiState by vm.detailState.collectAsState()
 
             LaunchedEffect(itemId) {
