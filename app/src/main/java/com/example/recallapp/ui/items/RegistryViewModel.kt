@@ -49,10 +49,10 @@ class RegistryViewModel : ViewModel() {
                     }
                 }
                 else {
-                    _listError.value = ScreenError("Error ${response.code()}", "Failed to load list.", "Retry") { loadItems() }
+                    _listError.value = ScreenError("Error ${response.code()}", "FAILED TO LOAD LIST", "RETRY") { loadItems() }
                 }
             } catch (e: Exception) {
-                _listError.value = ScreenError("Network Error", e.message ?: "Unknown error", "Retry") { loadItems() }
+                _listError.value = ScreenError("NETWORK ERROR", e.message ?: "UNKNOWN ERROR", "RETRY") { loadItems() }
             } finally {
                 _isLoading.value = false
             }
@@ -84,5 +84,63 @@ class RegistryViewModel : ViewModel() {
         }
     }
 
+    fun loadSingleItem(itemId: Long) {
+        _detailState.value = DetailUiState.Loading
+        viewModelScope.launch {
+            try {
+                val response = api.getRegistryItem(mockToken, itemId)
+                if (response.isSuccessful) {
+                    val item = response.body()
+                    if (item != null) { _detailState.value = DetailUiState.Success(item.product, item.batch ?: "") }
+                }
+                else {
+                    _detailState.value = DetailUiState.Error(response.code(), "FAILED TO LOAD ITEM")
+                }
+            } catch (e: Exception) {
+                _detailState.value = DetailUiState.Error(500, e.message ?: "NETWORK ERROR")
+            }
+        }
+    }
 
+    fun saveItem(itemId: Long?, product: String, batch: String, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            _detailState.value = DetailUiState.Loading
+            try {
+                val item = RegistryItem(product = product, batch = batch.takeIf { it.isNotBlank() })
+                val response = if (itemId == null) {
+                    api.createRegistryItem(mockToken, item)
+                }
+                else {
+                    api.updateRegistryItem(mockToken, itemId, item)
+                }
+
+                if (response.isSuccessful) {
+                    loadItems()
+                    onComplete()
+                }
+                else {
+                    _detailState.value = DetailUiState.Error(response.code(), "FAILED TO SAVE ITEM")
+                }
+            } catch (e: Exception) {
+                _detailState.value = DetailUiState.Error(500, "NETWORK ERROR")
+            }
+        }
+    }
+
+    fun deleteItem(itemId: Long, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = api.deleteRegistryItem(mockToken, itemId)
+                if (response.isSuccessful) {
+                    loadItems()
+                    onComplete()
+                }
+                else {
+                    _detailState.value = DetailUiState.Error(response.code(), "FAILED TO DELETE ITEM")
+                }
+            } catch (e: Exception) {
+                _detailState.value = DetailUiState.Error(500, "NETWORK ERROR")
+            }
+        }
+    }
 }
