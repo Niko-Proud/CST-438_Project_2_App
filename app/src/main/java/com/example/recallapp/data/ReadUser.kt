@@ -9,7 +9,13 @@ data class UserDto(
     val username: String,
     val admin: Boolean,
 )
-
+/**
+ * Sends only the role field that the PATCH endpoint should update.
+ * The property name matches the backend JSON.
+ */
+data class UpdateUserRoleRequest(
+    val admin: Boolean,
+)
 /**
  * Holds one page from GET /api/v1/users.
  * The pagination fields let us determine whether more users can be loaded.

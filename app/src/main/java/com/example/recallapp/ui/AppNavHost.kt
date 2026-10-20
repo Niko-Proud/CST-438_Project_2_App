@@ -1,11 +1,13 @@
 package com.example.recallapp.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -14,6 +16,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.recallapp.auth.AuthProvider
 import com.example.recallapp.auth.TokenStore
+import com.example.recallapp.ui.admin.AdminConsoleScreen
 import com.example.recallapp.ui.admin.ManageUsersRoute
 import com.example.recallapp.ui.items.MyItemsScreen
 import com.example.recallapp.ui.login.LoginRoute
@@ -24,19 +27,23 @@ object Routes {
     const val LOGIN = "login"
     const val ITEMS = "items"
     const val SETTINGS = "settings"
+    const val ADMIN = "admin"
     const val MANAGE_USERS = "manage_users"
 }
 
 /**
- * Registers the app's screens and handles navigation between them.
- * Bottom navigation is hidden during login.
+ * Registers the app's screens and connects their navigation callbacks.
+ *
+ * Admin tools open through Settings, not through separate bottom tabs.
+ * Admin-role enforcement is not implemented in this local-development flow.
  */
 @Composable
 fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
     val nav = rememberNavController()
+    val context = LocalContext.current
 
-    // Select the initial screen once. Login/logout callbacks handle
-    // navigation afterward without changing the graph's start destination.
+    // Choose the initial destination once.
+    // Login and logout callbacks handle subsequent navigation.
     val start = remember {
         if (tokens.isSignedIn) Routes.ITEMS else Routes.LOGIN
     }
@@ -54,17 +61,20 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                         Routes.SETTINGS to "Settings",
                     ).forEach { (route, label) ->
                         NavigationBarItem(
-                            // Manage Users belongs to Settings rather than
-                            // having its own bottom-navigation tab.
+                            // Settings remains selected while its console
+                            // or user-management screen is open.
                             selected = currentRoute == route ||
                                     (
                                             route == Routes.SETTINGS &&
-                                                    currentRoute == Routes.MANAGE_USERS
+                                                    currentRoute in listOf(
+                                                Routes.ADMIN,
+                                                Routes.MANAGE_USERS,
+                                            )
                                             ),
                             onClick = {
                                 nav.navigate(route) {
-                                    // Keep My Items as home without stacking
-                                    // repeated copies of the tab screens.
+                                    // Keep My Items as home and avoid
+                                    // accumulating repeated tab destinations.
                                     popUpTo(Routes.ITEMS) {
                                         inclusive = false
                                     }
@@ -91,7 +101,7 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                 .padding(padding)
                 .consumeWindowInsets(padding),
         ) {
-            // Registers login as a destination in this navigation graph.
+            // Preserves the existing Google sign-in flow.
             composable(Routes.LOGIN) {
                 val vm: LoginViewModel = viewModel(
                     factory = LoginViewModel.factory(auth, tokens),
@@ -101,7 +111,7 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                     vm = vm,
                     onSignedIn = {
                         nav.navigate(Routes.ITEMS) {
-                            // Prevent Back from reopening login after success.
+                            // Back should not reopen login after success.
                             popUpTo(Routes.LOGIN) {
                                 inclusive = true
                             }
@@ -111,12 +121,16 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                 )
             }
 
-            // Registers the home screen used after successful login.
+            // Displays the home screen after successful login.
             composable(Routes.ITEMS) {
                 MyItemsScreen(
                     // Registry data and item actions are not connected yet.
                     items = emptyList(),
+
+                    // Hide the header shortcut; the console opens from Settings.
+                    // This UI parameter does not change a database role.
                     isAdmin = false,
+
                     loading = false,
                     loadingMore = false,
                     error = null,
@@ -128,7 +142,7 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                         tokens.clear()
 
                         nav.navigate(Routes.LOGIN) {
-                            // Remove home from history when signing out.
+                            // Remove the signed-in screens from history.
                             popUpTo(Routes.ITEMS) {
                                 inclusive = true
                             }
@@ -138,7 +152,7 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                 )
             }
 
-            // Provides access to settings and the local user-list feature.
+            // Settings provides the entry point to the admin console.
             composable(Routes.SETTINGS) {
                 Column(
                     modifier = Modifier
@@ -151,26 +165,53 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                         style = MaterialTheme.typography.headlineLarge,
                     )
 
-                    // Temporary local-development entry point.
-                    // This button does not enforce admin permissions.
+                    // Temporarily visible to all signed-in users locally.
+                    // This will use the real admin flag after account linking.
                     Button(
                         onClick = {
-                            nav.navigate(Routes.MANAGE_USERS) {
+                            nav.navigate(Routes.ADMIN) {
                                 launchSingleTop = true
                             }
                         },
                         modifier = Modifier.padding(top = 16.dp),
                     ) {
-                        Text("Manage Users")
+                        Text("Admin Console")
                     }
                 }
             }
 
-            // Connects the user screen to its ViewModel and API client.
-            // The ViewModel belongs to this navigation destination.
+            // Displays the existing console with its two action cards.
+            composable(Routes.ADMIN) {
+                AdminConsoleScreen(
+                    onBack = {
+                        // Matches the console's "Back to My Items" button.
+                        nav.navigate(Routes.ITEMS) {
+                            popUpTo(Routes.ITEMS) {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                        }
+                    },
+                    onManageUsers = {
+                        nav.navigate(Routes.MANAGE_USERS) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onManageRecalls = {
+                        // Give feedback until recall management is implemented.
+                        Toast.makeText(
+                            context,
+                            "Recall management is not connected yet.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    },
+                )
+            }
+
+            // Loads real users through the route's ViewModel and API client.
             composable(Routes.MANAGE_USERS) {
                 ManageUsersRoute(
-                    // Settings remains underneath this screen on the stack.
+                    // Returns to the console underneath this destination.
                     onBack = { nav.popBackStack() },
                 )
             }

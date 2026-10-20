@@ -17,6 +17,7 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
+import com.example.recallapp.data.UpdateUserRoleRequest
 
 /**
  * Tests user loading and searching without Android UI or a running API.
@@ -178,4 +179,21 @@ private class FakeUsersApi : BrainwormApiService {
         token: String,
         itemId: Long,
     ): Response<Unit> = error("Not used in user tests.")
+
+    /**
+     * Satisfies the API interface.
+     * Existing loading/search tests should never call this operation.
+     */
+    override suspend fun updateUserRole(
+        userId: Long,
+        request: UpdateUserRoleRequest,
+    ): Response<UserDto> = error("Not used in loading tests.")
+
+    /**
+     * Satisfies the API interface.
+     * Existing loading/search tests should never call this operation.
+     */
+    override suspend fun deleteUser(
+        userId: Long,
+    ): Response<Unit> = error("Not used in loading tests.")
 }
