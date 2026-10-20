@@ -14,6 +14,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.recallapp.auth.AuthProvider
 import com.example.recallapp.auth.TokenStore
+import com.example.recallapp.ui.admin.ManageUsersRoute
 import com.example.recallapp.ui.items.MyItemsScreen
 import com.example.recallapp.ui.login.LoginRoute
 import com.example.recallapp.ui.login.LoginViewModel
@@ -23,6 +24,7 @@ object Routes {
     const val LOGIN = "login"
     const val ITEMS = "items"
     const val SETTINGS = "settings"
+    const val MANAGE_USERS = "manage_users"
 }
 
 /**
@@ -52,7 +54,13 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                         Routes.SETTINGS to "Settings",
                     ).forEach { (route, label) ->
                         NavigationBarItem(
-                            selected = currentRoute == route,
+                            // Manage Users belongs to Settings rather than
+                            // having its own bottom-navigation tab.
+                            selected = currentRoute == route ||
+                                    (
+                                            route == Routes.SETTINGS &&
+                                                    currentRoute == Routes.MANAGE_USERS
+                                            ),
                             onClick = {
                                 nav.navigate(route) {
                                     // Keep My Items as home without stacking
@@ -130,7 +138,7 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                 )
             }
 
-            // Registers Settings beside Login and Items, inside the same graph.
+            // Provides access to settings and the local user-list feature.
             composable(Routes.SETTINGS) {
                 Column(
                     modifier = Modifier
@@ -142,7 +150,29 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                         text = "Settings",
                         style = MaterialTheme.typography.headlineLarge,
                     )
+
+                    // Temporary local-development entry point.
+                    // This button does not enforce admin permissions.
+                    Button(
+                        onClick = {
+                            nav.navigate(Routes.MANAGE_USERS) {
+                                launchSingleTop = true
+                            }
+                        },
+                        modifier = Modifier.padding(top = 16.dp),
+                    ) {
+                        Text("Manage Users")
+                    }
                 }
+            }
+
+            // Connects the user screen to its ViewModel and API client.
+            // The ViewModel belongs to this navigation destination.
+            composable(Routes.MANAGE_USERS) {
+                ManageUsersRoute(
+                    // Settings remains underneath this screen on the stack.
+                    onBack = { nav.popBackStack() },
+                )
             }
         }
     }
