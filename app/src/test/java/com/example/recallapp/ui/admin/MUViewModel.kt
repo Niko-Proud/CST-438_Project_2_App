@@ -18,6 +18,8 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
 import com.example.recallapp.data.UpdateUserRoleRequest
+import com.example.recallapp.data.RecallDto
+import com.example.recallapp.data.RecallPageDto
 
 /**
  * Tests user loading and searching without Android UI or a running API.
@@ -196,4 +198,11 @@ private class FakeUsersApi : BrainwormApiService {
     override suspend fun deleteUser(
         userId: Long,
     ): Response<Unit> = error("Not used in loading tests.")
+
+    /** Recall loading is not exercised by these user tests. */
+    override suspend fun getRecalls(
+        page: Int,
+        size: Int,
+        product: String?,
+    ): Response<RecallPageDto> = error("Not used in user tests.")
 }

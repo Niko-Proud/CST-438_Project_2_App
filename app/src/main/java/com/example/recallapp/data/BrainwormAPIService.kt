@@ -63,5 +63,14 @@ interface BrainwormApiService {
         @Path("userId") userId: Long,
     ): Response<Unit>
 
-
+    /**
+     * Reads one page of recalls.
+     * A null product omits the filter and returns all recalls for that page.
+     */
+    @GET("recalls")
+    suspend fun getRecalls(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20,
+        @Query("product") product: String? = null,
+    ): Response<RecallPageDto>
 }
