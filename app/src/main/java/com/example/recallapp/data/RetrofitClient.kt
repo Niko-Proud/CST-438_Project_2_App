@@ -1,14 +1,23 @@
 package com.example.recallapp.data
+import com.example.recallapp.BuildConfig
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-    private const val BASE_URL = "http://10.0.2.2:8080/api/v1/"
-    val instance: BrainwormApiService by lazy {
+    /**
+     * Server address from build.gradle.kts (API_BASE_URL). Debug builds use 10.0.2.2 by default,
+     * which is the computer running the emulator. Change API_BASE_URL in local.properties to use another server.
+     */
+    private val BASE_URL = BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/"
+
+    val instance: BrainwormApiService by lazy { create(BASE_URL) }
+
+    /** Builds the API client for any base URL. Tests use this with a MockWebServer address. */
+    fun create(baseUrl: String): BrainwormApiService {
         val retrofit = Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(baseUrl)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-        retrofit.create(BrainwormApiService::class.java)
+        return retrofit.create(BrainwormApiService::class.java)
     }
 }
