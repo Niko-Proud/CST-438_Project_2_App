@@ -34,7 +34,8 @@ class RegistryDetailScreenTest {
 
         composeTestRule.onNodeWithText("Organic Spinach").assertIsDisplayed()
         composeTestRule.onNodeWithText("LOT-123").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Save Changes").performClick()
+        composeTestRule.onNodeWithText("Edit").performClick()
+        composeTestRule.onNodeWithText("Save").performClick()
 
         assertEquals("Organic Spinach", capturedProduct)
         assertEquals("LOT-123", capturedBatch)
