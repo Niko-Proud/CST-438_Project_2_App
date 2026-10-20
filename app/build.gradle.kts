@@ -10,9 +10,10 @@ val localProps = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
-val googleClientId: String = localProps.getProperty("GOOGLE_CLIENT_ID", "")
-val googleRedirectScheme: String = localProps.getProperty("GOOGLE_REDIRECT_SCHEME", "com.example.recallapp")
+val googleClientId: String = localProps.getProperty("GOOGLE_CLIENT_ID", "272513496534-v0jvfsfk2092rajeb7s2h5hnffo3kg1a.apps.googleusercontent.com")
+val googleRedirectScheme: String = localProps.getProperty("GOOGLE_REDIRECT_SCHEME", "com.googleusercontent.apps.272513496534-v0jvfsfk2092rajeb7s2h5hnffo3kg1a")
 val apiBaseUrl: String = localProps.getProperty("API_BASE_URL", "http://10.0.2.2:8080/")
+val useFakeApi: String = localProps.getProperty("USE_FAKE_API", "false")
 
 android {
     namespace = "com.example.recallapp"
@@ -47,9 +48,11 @@ android {
         debug {
             signingConfig = signingConfigs.getByName("debug")
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+            buildConfigField("boolean", "USE_FAKE_API", useFakeApi)
         }
         release {
             buildConfigField("String", "API_BASE_URL", "\"https://YOUR-LIVE-API.example.com/\"")
+            buildConfigField("boolean", "USE_FAKE_API", "false")
             optimization {
                 enable = false
             }
