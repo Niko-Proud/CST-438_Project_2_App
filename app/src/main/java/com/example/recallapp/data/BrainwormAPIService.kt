@@ -82,4 +82,43 @@ interface BrainwormApiService {
         @Header("Authorization") token: String,
         @Path("itemId") itemId: Long
     ): Response<Unit>
+
+    /**
+     * Fetches one page of users.
+     * Page numbering starts at 0.
+     */
+    @GET("users")
+    suspend fun getUsers(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20,
+    ): Response<UserPageDto>
+
+    /**
+     * Changes a user's role and returns the updated database record.
+     * admin=true promotes; admin=false makes the user a normie.
+     */
+    @PATCH("users/{userId}")
+    suspend fun updateUserRole(
+        @Path("userId") userId: Long,
+        @Body request: UpdateUserRoleRequest,
+    ): Response<UserDto>
+
+    /**
+     * Deletes a user. The current backend returns HTTP 204 with no body.
+     */
+    @DELETE("users/{userId}")
+    suspend fun deleteUser(
+        @Path("userId") userId: Long,
+    ): Response<Unit>
+
+    /**
+     * Reads one page of recalls.
+     * A null product omits the filter and returns all recalls for that page.
+     */
+    @GET("recalls")
+    suspend fun getRecalls(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20,
+        @Query("product") product: String? = null,
+    ): Response<RecallPageDto>
 }

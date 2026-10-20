@@ -22,6 +22,8 @@ import com.example.recallapp.BuildConfig
 import com.example.recallapp.auth.AuthProvider
 import com.example.recallapp.auth.TokenStore
 import com.example.recallapp.ui.admin.AdminConsoleScreen
+import com.example.recallapp.ui.admin.ManageRecallsRoute
+import com.example.recallapp.ui.admin.ManageUsersRoute
 import com.example.recallapp.ui.items.DetailUiState
 import com.example.recallapp.ui.items.MyItemsScreen
 import com.example.recallapp.ui.items.RegistryDetailScreen
@@ -34,6 +36,8 @@ object Routes {
     const val LOGIN = "login"
     const val ITEMS = "items"
     const val ADMIN = "admin"
+    const val MANAGE_USERS = "manage_users"
+    const val MANAGE_RECALLS = "manage_recalls"
     const val DETAIL = "detail/{itemId}"
     fun detail(itemId: Long) = "detail/$itemId"
 }
@@ -134,9 +138,18 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
         composable(Routes.ADMIN) {
             AdminConsoleScreen(
                 onBack = { nav.popBackStack() },
-                onManageRecalls = {},
-                onManageUsers = {},
+                onManageRecalls = { nav.navigate(Routes.MANAGE_RECALLS) { launchSingleTop = true } },
+                onManageUsers = { nav.navigate(Routes.MANAGE_USERS) { launchSingleTop = true } },
             )
+        }
+
+        // Victoria's admin screens. Back returns to the admin console.
+        composable(Routes.MANAGE_USERS) {
+            ManageUsersRoute(onBack = { nav.popBackStack() })
+        }
+
+        composable(Routes.MANAGE_RECALLS) {
+            ManageRecallsRoute(onBack = { nav.popBackStack() })
         }
     }
 }

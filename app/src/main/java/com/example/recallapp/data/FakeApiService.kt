@@ -46,4 +46,16 @@ class FakeApiService : BrainwormApiService {
         items.removeAll { it.id == itemId }
         return Response.success(Unit)
     }
+
+    // Admin calls are not part of the fake data yet, so they return empty results.
+    override suspend fun getUsers(page: Int, size: Int): Response<UserPageDto> =
+        Response.success(UserPageDto(emptyList(), number = 0, last = true, totalElements = 0))
+
+    override suspend fun updateUserRole(userId: Long, request: UpdateUserRoleRequest): Response<UserDto> =
+        Response.error(404, "".toResponseBody(null))
+
+    override suspend fun deleteUser(userId: Long): Response<Unit> = Response.success(Unit)
+
+    override suspend fun getRecalls(page: Int, size: Int, product: String?): Response<RecallPageDto> =
+        Response.success(RecallPageDto(emptyList(), number = 0, last = true, totalElements = 0))
 }

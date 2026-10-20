@@ -3,8 +3,12 @@ package com.example.recallapp.ui.items
 import com.example.recallapp.auth.TokenStore
 import com.example.recallapp.data.BrainwormApiService
 import com.example.recallapp.data.FakeApiService
+import com.example.recallapp.data.RecallPageDto
 import com.example.recallapp.data.RegistryItem
 import com.example.recallapp.data.SpringPage
+import com.example.recallapp.data.UpdateUserRoleRequest
+import com.example.recallapp.data.UserDto
+import com.example.recallapp.data.UserPageDto
 import com.example.recallapp.ui.login.MainDispatcherRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -24,6 +28,10 @@ class ErrorApi(private val code: Int) : BrainwormApiService {
     override suspend fun createRegistryItem(token: String, item: RegistryItem): Response<RegistryItem> = error()
     override suspend fun updateRegistryItem(token: String, itemId: Long, item: RegistryItem): Response<RegistryItem> = error()
     override suspend fun deleteRegistryItem(token: String, itemId: Long): Response<Unit> = error()
+    override suspend fun getUsers(page: Int, size: Int): Response<UserPageDto> = error()
+    override suspend fun updateUserRole(userId: Long, request: UpdateUserRoleRequest): Response<UserDto> = error()
+    override suspend fun deleteUser(userId: Long): Response<Unit> = error()
+    override suspend fun getRecalls(page: Int, size: Int, product: String?): Response<RecallPageDto> = error()
 }
 
 /** Tests the home list and detail logic with the fake API, so no server is needed. */
