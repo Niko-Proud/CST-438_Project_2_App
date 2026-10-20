@@ -2,6 +2,12 @@ package com.example.recallapp.data
 import retrofit2.Response
 import retrofit2.http.*
 
+data class SpringPage<T>(
+    val content: List<T>,
+    val last: Boolean,
+    val pageNumber: Int
+)
+
 data class RegistryItem(
     val id: Long? = null,
     val product: String,
@@ -9,6 +15,13 @@ data class RegistryItem(
 )
 
 interface BrainwormApiService {
+    @GET("registry")
+    suspend fun getRegistryItems(
+        @Header("Authorization") token: String,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20
+    ): Response<SpringPage<RegistryItem>>
+
     @GET("registry/{itemId}")
     suspend fun getRegistryItem(
         @Header("Authorization") token: String,

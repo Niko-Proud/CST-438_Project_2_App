@@ -17,6 +17,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.recallapp.ui.AppNavHost
 import com.example.recallapp.ui.admin.AdminConsoleScreen
 import com.example.recallapp.ui.items.MyItemsScreen
 import com.example.recallapp.ui.login.LoginScreen
@@ -82,8 +83,8 @@ private fun AppRoot(allowDemo: Boolean) {
                 }
             }
         }
-        val app = application as RecallApplication
-        setContent { RecallTheme { AppNavHost(auth = app.auth, tokens = app.tokens) } }
+        //val app = application as RecallApplication
+        //setContent { RecallTheme { AppNavHost(auth = app.auth, tokens = app.tokens) } }
     }
 }
 
