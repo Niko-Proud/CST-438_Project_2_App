@@ -6,10 +6,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -20,8 +20,8 @@ import com.example.recallapp.data.UserDto
 import com.example.recallapp.ui.theme.Lab
 
 /**
- * Connects the screen to the real API through its ViewModel.
- * Keeps networking and state ownership outside the layout.
+ * Connects screen callbacks to the ViewModel.
+ * Only the ViewModel makes API requests and changes the displayed user list.
  */
 @Composable
 fun ManageUsersRoute(onBack: () -> Unit) {
@@ -40,12 +40,15 @@ fun ManageUsersRoute(onBack: () -> Unit) {
         onBack = onBack,
         onQueryChange = vm::updateQuery,
         onRetry = vm::loadUsers,
+        onChangeRole = vm::changeRole,
+        onDeleteUser = vm::deleteUser,
+        onDismissActionError = vm::clearActionError,
     )
 }
 
 /**
- * Displays the supplied user state and reports interactions through callbacks.
- * This function does not make network requests or modify user records.
+ * Displays users and confirms potentially destructive actions.
+ * Opening a dialog makes no API request; confirming invokes the callback.
  */
 @Composable
 fun ManageUsersScreen(
@@ -53,7 +56,13 @@ fun ManageUsersScreen(
     onBack: () -> Unit,
     onQueryChange: (String) -> Unit,
     onRetry: () -> Unit,
+    onChangeRole: (Long, Boolean) -> Unit,
+    onDeleteUser: (Long) -> Unit,
+    onDismissActionError: () -> Unit,
 ) {
+    var roleTarget by remember { mutableStateOf<UserDto?>(null) }
+    var deleteTarget by remember { mutableStateOf<UserDto?>(null) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -82,7 +91,7 @@ fun ManageUsersScreen(
                 )
 
                 Text(
-                    text = "Find users and view their roles.",
+                    text = "Find users and manage their roles.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Lab.Mint,
                 )
@@ -130,10 +139,7 @@ fun ManageUsersScreen(
                             color = Lab.Hazard,
                         )
 
-                        Text(
-                            text = state.error,
-                            color = Lab.Ink,
-                        )
+                        Text(state.error, color = Lab.Ink)
 
                         Button(onClick = onRetry) {
                             Text("Retry")
@@ -143,7 +149,6 @@ fun ManageUsersScreen(
             }
 
             else -> {
-                // Compute the filtered list once for this rendered state.
                 val visibleUsers = state.visibleUsers
 
                 item {
@@ -172,17 +177,115 @@ fun ManageUsersScreen(
                         items = visibleUsers,
                         key = { user -> user.id },
                     ) { user ->
-                        UserCard(user)
+                        UserCard(
+                            user = user,
+                            busy = user.id in state.busyUserIds,
+                            onRoleClick = { roleTarget = user },
+                            onDeleteClick = { deleteTarget = user },
+                        )
                     }
                 }
             }
         }
     }
+
+    // Keep the intended change fixed to what the confirmation describes.
+    roleTarget?.let { user ->
+        val makeAdmin = !user.admin
+
+        AlertDialog(
+            onDismissRequest = { roleTarget = null },
+            title = {
+                Text(if (makeAdmin) "Make admin?" else "Make normie?")
+            },
+            text = {
+                val roleName = if (makeAdmin) "an admin" else "a normie"
+                Text("Change ${user.username} to $roleName?")
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !state.loading &&
+                            user.id !in state.busyUserIds &&
+                            state.users.any { it.id == user.id },
+                    onClick = {
+                        roleTarget = null
+                        onChangeRole(user.id, makeAdmin)
+                    },
+                    modifier = Modifier.testTag("confirm-role"),
+                ) {
+                    Text("Confirm role change")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { roleTarget = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    // Deletion only happens after the user confirms this dialog.
+    deleteTarget?.let { user ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete ${user.username}?") },
+            text = {
+                Text(
+                    "This permanently deletes the user and their registry " +
+                            "items. Associated recall records may also be deleted " +
+                            "under the current backend mappings.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !state.loading &&
+                            user.id !in state.busyUserIds &&
+                            state.users.any { it.id == user.id },
+                    onClick = {
+                        deleteTarget = null
+                        onDeleteUser(user.id)
+                    },
+                    modifier = Modifier.testTag("confirm-delete"),
+                ) {
+                    Text("Delete permanently", color = Lab.Hazard)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    // A dialog makes request failures visible even when the list is scrolled.
+    if (roleTarget == null && deleteTarget == null) {
+        state.actionError?.let { message ->
+            AlertDialog(
+                onDismissRequest = onDismissActionError,
+                title = { Text("Action failed") },
+                text = { Text(message) },
+                confirmButton = {
+                    TextButton(onClick = onDismissActionError) {
+                        Text("Dismiss")
+                    }
+                },
+            )
+        }
+    }
 }
 
-/** Displays a user's identity and current role without exposing edit actions. */
+/**
+ * Displays a user and opens confirmation dialogs through callbacks.
+ * Both buttons are disabled while a request for this user is running.
+ */
 @Composable
-private fun UserCard(user: UserDto) {
+private fun UserCard(
+    user: UserDto,
+    busy: Boolean,
+    onRoleClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -208,8 +311,41 @@ private fun UserCard(user: UserDto) {
             style = MaterialTheme.typography.labelMedium,
             color = Lab.TealDark,
             modifier = Modifier
+                .testTag("role-${user.id}")
                 .background(Lab.Mint, RoundedCornerShape(4.dp))
                 .padding(horizontal = 10.dp, vertical = 4.dp),
         )
+
+        Button(
+            onClick = onRoleClick,
+            enabled = !busy,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Lab.Teal,
+                contentColor = Color.White,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("change-role-${user.id}"),
+        ) {
+            Text(if (user.admin) "Make normie" else "Make admin")
+        }
+
+        OutlinedButton(
+            onClick = onDeleteClick,
+            enabled = !busy,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("delete-user-${user.id}"),
+        ) {
+            Text("Delete user")
+        }
+
+        if (busy) {
+            Text(
+                text = "Saving…",
+                style = MaterialTheme.typography.bodySmall,
+                color = Lab.Muted,
+            )
+        }
     }
 }
