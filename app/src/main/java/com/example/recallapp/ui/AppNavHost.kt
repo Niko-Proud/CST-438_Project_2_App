@@ -70,6 +70,12 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
             val isLoading by vm.isLoading.collectAsState()
             val isLoadingMore by vm.isLoadingMore.collectAsState()
             val error by vm.listError.collectAsState()
+            val signedOut by vm.signedOut.collectAsState()
+
+            // The server said the sign-in expired (401), so go back to the login screen.
+            LaunchedEffect(signedOut) {
+                if (signedOut) nav.navigate(Routes.LOGIN) { popUpTo(Routes.ITEMS) { inclusive = true } }
+            }
 
             MyItemsScreen(
                 items = items,
@@ -102,6 +108,11 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
             val homeEntry = remember(backStackEntry) { nav.getBackStackEntry(Routes.ITEMS) }
             val vm: RegistryViewModel = viewModel(viewModelStoreOwner = homeEntry, factory = RegistryViewModel.factory(tokens))
             val uiState by vm.detailState.collectAsState()
+            val signedOut by vm.signedOut.collectAsState()
+
+            LaunchedEffect(signedOut) {
+                if (signedOut) nav.navigate(Routes.LOGIN) { popUpTo(Routes.ITEMS) { inclusive = true } }
+            }
 
             LaunchedEffect(itemId) {
                 if (!isCreatingNew) vm.loadSingleItem(itemId)

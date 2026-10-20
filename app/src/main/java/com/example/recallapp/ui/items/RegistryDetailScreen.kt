@@ -119,7 +119,7 @@ fun RegistryDetailScreen(
                 is DetailUiState.Error -> {
                     Section(title = "SOMETHING WENT WRONG", color = Lab.DangerSoft) {
                         Text(
-                            text = "Error ${uiState.statusCode}: ${uiState.message}",
+                            text = if (uiState.statusCode > 0) "Error ${uiState.statusCode}: ${uiState.message}" else uiState.message,
                             color = Lab.Hazard,
                             style = MaterialTheme.typography.titleMedium,
                         )

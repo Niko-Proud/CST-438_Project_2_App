@@ -15,6 +15,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/** A short, readable message for an HTTP error code from the API. */
+fun messageForCode(code: Int): String = when (code) {
+    401 -> "Your sign-in has expired. Please sign in again."
+    403 -> "You don't have permission to do this."
+    404 -> "This food was not found. It may have been deleted."
+    in 500..599 -> "Something went wrong on our server. Try again in a moment."
+    else -> "Something went wrong (code $code). Try again."
+}
+
+/** Shown when the phone cannot reach the server at all. */
+const val NETWORK_MESSAGE = "Could not reach the server. Check your internet and try again."
+
 /** Turns an API item into a home screen row, using the first matched recall if there is one. */
 fun RegistryItem.toItemUi(): ItemUi {
     val recall = recalledFoods?.firstOrNull()
@@ -43,6 +55,10 @@ class RegistryViewModel(
     private val _listError = MutableStateFlow<ScreenError?>(null)
     val listError: StateFlow<ScreenError?> = _listError.asStateFlow()
 
+    private val _signedOut = MutableStateFlow(false)
+    /** Becomes true when the server says the token is no longer valid (401). The screen then goes to login. */
+    val signedOut: StateFlow<Boolean> = _signedOut.asStateFlow()
+
     private var currentPage = 0
     private var isLastPage = false
     private val _detailState = MutableStateFlow<DetailUiState>(DetailUiState.Loading)
@@ -70,10 +86,10 @@ class RegistryViewModel(
                     }
                 }
                 else {
-                    _listError.value = ScreenError("Error ${response.code()}", "FAILED TO LOAD LIST", "RETRY") { loadItems() }
+                    handleListError(response.code())
                 }
             } catch (e: Exception) {
-                _listError.value = ScreenError("NETWORK ERROR", e.message ?: "UNKNOWN ERROR", "RETRY") { loadItems() }
+                _listError.value = ScreenError("No connection", NETWORK_MESSAGE, "Try again") { loadItems() }
             } finally {
                 _isLoading.value = false
             }
@@ -90,10 +106,10 @@ class RegistryViewModel(
                     _items.value = emptyList()
                     onComplete()
                 } else {
-                    _listError.value = ScreenError("Error ${response.code()}", "FAILED TO DELETE ACCOUNT", "OK") { _listError.value = null }
+                    handleListError(response.code())
                 }
             } catch (e: Exception) {
-                _listError.value = ScreenError("NETWORK ERROR", "Could not delete the account. Try again.", "OK") { _listError.value = null }
+                _listError.value = ScreenError("No connection", NETWORK_MESSAGE, "OK") { loadItems() }
             }
         }
     }
@@ -142,10 +158,10 @@ class RegistryViewModel(
                     }
                 }
                 else {
-                    _detailState.value = DetailUiState.Error(response.code(), "FAILED TO LOAD ITEM")
+                    handleDetailError(response.code())
                 }
             } catch (e: Exception) {
-                _detailState.value = DetailUiState.Error(500, e.message ?: "NETWORK ERROR")
+                _detailState.value = DetailUiState.Error(0, NETWORK_MESSAGE)
             }
         }
     }
@@ -167,10 +183,10 @@ class RegistryViewModel(
                     onComplete()
                 }
                 else {
-                    _detailState.value = DetailUiState.Error(response.code(), "FAILED TO SAVE ITEM")
+                    handleDetailError(response.code())
                 }
             } catch (e: Exception) {
-                _detailState.value = DetailUiState.Error(500, "NETWORK ERROR")
+                _detailState.value = DetailUiState.Error(0, NETWORK_MESSAGE)
             }
         }
     }
@@ -184,12 +200,41 @@ class RegistryViewModel(
                     onComplete()
                 }
                 else {
-                    _detailState.value = DetailUiState.Error(response.code(), "FAILED TO DELETE ITEM")
+                    handleListError(response.code())
                 }
             } catch (e: Exception) {
-                _detailState.value = DetailUiState.Error(500, "NETWORK ERROR")
+                _listError.value = ScreenError("No connection", NETWORK_MESSAGE, "Try again") { loadItems() }
             }
         }
+    }
+
+    /** 401 signs the user out. Other codes show a message on the home screen with a Try again button. */
+    private fun handleListError(code: Int) {
+        if (code == 401) {
+            signOut()
+            return
+        }
+        val title = when (code) {
+            403 -> "No access"
+            404 -> "Not found"
+            in 500..599 -> "Server problem"
+            else -> "Error $code"
+        }
+        _listError.value = ScreenError(title, messageForCode(code), "Try again") { loadItems() }
+    }
+
+    /** 401 signs the user out. Other codes show the message on the detail screen. */
+    private fun handleDetailError(code: Int) {
+        if (code == 401) {
+            signOut()
+            return
+        }
+        _detailState.value = DetailUiState.Error(code, messageForCode(code))
+    }
+
+    private fun signOut() {
+        tokens.clear()
+        _signedOut.value = true
     }
 
     companion object {
