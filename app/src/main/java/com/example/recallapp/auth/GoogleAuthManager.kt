@@ -29,7 +29,7 @@ class GoogleAuthManager(context: Context) : AuthProvider {
     )
 
     override val isConfigured: Boolean = BuildConfig.GOOGLE_CLIENT_ID.isNotBlank()
-
+//fuck
     override fun signInIntent(): Intent {
         val request = AuthorizationRequest.Builder(
             config,

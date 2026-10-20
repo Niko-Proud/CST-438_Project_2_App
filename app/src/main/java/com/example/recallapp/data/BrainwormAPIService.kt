@@ -15,6 +15,16 @@ interface BrainwormApiService {
         @Path("itemId") itemId: Long
     ): Response<RegistryItem>
 
+    /**
+     * Fetches one page of users.
+     * Page numbering starts at 0.
+     */
+    @GET("users")
+    suspend fun getUsers(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20,
+    ): Response<UserPageDto>
+
     @POST("registry")
     suspend fun createRegistryItem(
         @Header("Authorization") token: String,
