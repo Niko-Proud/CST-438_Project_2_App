@@ -21,6 +21,7 @@ import com.example.recallapp.ui.admin.ManageUsersRoute
 import com.example.recallapp.ui.items.MyItemsScreen
 import com.example.recallapp.ui.login.LoginRoute
 import com.example.recallapp.ui.login.LoginViewModel
+import com.example.recallapp.ui.admin.ManageRecallsRoute
 
 /** Keeps route names consistent when registering and opening screens. */
 object Routes {
@@ -28,6 +29,8 @@ object Routes {
     const val ITEMS = "items"
     const val SETTINGS = "settings"
     const val ADMIN = "admin"
+
+    const val MANAGE_RECALLS = "manage_recalls"
     const val MANAGE_USERS = "manage_users"
 }
 
@@ -69,6 +72,7 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                                                     currentRoute in listOf(
                                                 Routes.ADMIN,
                                                 Routes.MANAGE_USERS,
+                                                Routes.MANAGE_RECALLS
                                             )
                                             ),
                             onClick = {
@@ -198,12 +202,15 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                         }
                     },
                     onManageRecalls = {
-                        // Give feedback until recall management is implemented.
-                        Toast.makeText(
-                            context,
-                            "Recall management is not connected yet.",
-                            Toast.LENGTH_SHORT,
-                        ).show()
+//                        // Give feedback until recall management is implemented.
+//                        Toast.makeText(
+//                            context,
+//                            "Recall management is not connected yet.",
+//                            Toast.LENGTH_SHORT,
+//                        ).show()
+                        nav.navigate(Routes.MANAGE_RECALLS) {
+                            launchSingleTop = true
+                        }
                     },
                 )
             }
@@ -212,6 +219,12 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
             composable(Routes.MANAGE_USERS) {
                 ManageUsersRoute(
                     // Returns to the console underneath this destination.
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            // Opens the read-only recall list; Back returns to the admin console.
+            composable(Routes.MANAGE_RECALLS) {
+                ManageRecallsRoute(
                     onBack = { nav.popBackStack() },
                 )
             }
