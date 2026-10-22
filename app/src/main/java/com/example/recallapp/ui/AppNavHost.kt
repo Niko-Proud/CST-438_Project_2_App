@@ -30,6 +30,12 @@ import com.example.recallapp.ui.items.RegistryDetailScreen
 import com.example.recallapp.ui.items.RegistryViewModel
 import com.example.recallapp.ui.login.LoginRoute
 import com.example.recallapp.ui.login.LoginViewModel
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.example.recallapp.data.RetrofitClient
+import com.google.gson.JsonParseException
+import java.io.IOException
+import com.example.recallapp.ui.items.ScreenError
 
 /** Route names used by the navigation graph. */
 object Routes {
@@ -75,6 +81,27 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
             val isLoadingMore by vm.isLoadingMore.collectAsState()
             val error by vm.listError.collectAsState()
             val signedOut by vm.signedOut.collectAsState()
+            var isAdmin by remember { mutableStateOf(false) }
+            var profileError by remember { mutableStateOf<String?>(null) }
+
+            // Only show admin controls after the API confirms the database role.
+            LaunchedEffect(Unit) {
+                val header = tokens.bearer() ?: return@LaunchedEffect
+
+                try {
+                    val response = RetrofitClient.instance.getCurrentUser(header)
+                    if (response.isSuccessful) {
+                        isAdmin = response.body()?.admin == true
+                    } else {
+                        profileError = "Could not load your role (HTTP ${response.code()})."
+                    }
+                } catch (error: IOException) {
+                    profileError = "Could not connect to load your role."
+                } catch (error: JsonParseException) {
+                    profileError = "Could not read your account information."
+                }
+            }
+
 
             // The server said the sign-in expired (401), so go back to the login screen.
             LaunchedEffect(signedOut) {
@@ -84,10 +111,17 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
             MyItemsScreen(
                 items = items,
                 // Temporary: shows the Admin button in debug builds until /users/me is connected.
-                isAdmin = BuildConfig.DEBUG,
+                isAdmin = isAdmin,
                 loading = isLoading,
                 loadingMore = isLoadingMore,
-                error = error,
+                error = error ?: profileError?.let { message ->
+                    ScreenError(
+                        title = "Account unavailable",
+                        message = message,
+                        actionLabel = "Dismiss",
+                        onAction = { profileError = null },
+                    )
+                },
                 onOpen = { itemId -> nav.navigate(Routes.detail(itemId)) },
                 onAdd = { nav.navigate(Routes.detail(-1L)) },
                 onAdmin = { nav.navigate(Routes.ADMIN) },

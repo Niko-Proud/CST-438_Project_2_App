@@ -20,6 +20,14 @@ class FakeApiService : BrainwormApiService {
         items.clear()
         return Response.success(Unit)
     }
+    /** Offline mode cannot provide a verified account profile. */
+    override suspend fun getCurrentUser(
+        token: String,
+    ): Response<UserDto> =
+        Response.error(
+            501,
+            "Account profiles require the real API.".toResponseBody(null),
+        )
 
     override suspend fun getRegistryItems(token: String, page: Int, size: Int): Response<SpringPage<RegistryItem>> =
         Response.success(SpringPage(items.toList(), last = true))

@@ -131,4 +131,9 @@ interface BrainwormApiService {
         @Header("Authorization") token: String,
     ): Response<UserDto>
 
+    /** Reads the signed-in user's existing database profile. */
+    @GET("users/me")
+    suspend fun getCurrentUser(
+        @Header("Authorization") token: String,
+    ): Response<UserDto>
 }
