@@ -8,6 +8,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.recallapp.auth.AuthProvider
 import com.example.recallapp.auth.TokenStore
+import com.example.recallapp.data.BrainwormApiService
+import com.example.recallapp.data.RetrofitClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,46 +24,119 @@ data class LoginUiState(
     val signedIn: Boolean = false,
 )
 
-/** Runs Google sign in and saves the ID token. */
+/** Completes Google sign-in and links the account before opening the app. */
 class LoginViewModel(
     private val auth: AuthProvider,
     private val tokens: TokenStore,
+    private val api: BrainwormApiService,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(LoginUiState(signedIn = tokens.isSignedIn))
+    private val _state = MutableStateFlow(
+        LoginUiState(signedIn = tokens.isSignedIn)
+    )
 
-    /** Current screen state. */
     val state: StateFlow<LoginUiState> = _state.asStateFlow()
 
-    /** Returns the intent that opens Google sign in, or null when sign in is not set up yet. */
+    /** Opens Google sign-in and reports configuration or launch errors. */
     fun startSignIn(): Intent? {
+        if (_state.value.loading) return null
+
         if (!auth.isConfigured) {
             _state.update { it.copy(error = NOT_CONFIGURED) }
             return null
         }
-        _state.update { it.copy(loading = true, error = null) }
-        return auth.signInIntent()
+
+        _state.update {
+            it.copy(loading = true, error = null, signedIn = false)
+        }
+
+        return try {
+            auth.signInIntent()
+        } catch (error: Exception) {
+            _state.update {
+                it.copy(
+                    loading = false,
+                    error = error.message ?: "Could not open Google sign-in.",
+                )
+            }
+            null
+        }
     }
 
-    /** Handles the result that comes back from the Google sign in page. */
+    /**
+     * Sends Google's ID token to the API to find or create the account.
+     * Saves the session only after the backend confirms success.
+     */
     fun onAuthResult(data: Intent?) {
         viewModelScope.launch {
+            _state.update {
+                it.copy(loading = true, error = null, signedIn = false)
+            }
+
             try {
-                tokens.save(auth.handleResult(data))
-                _state.update { it.copy(loading = false, signedIn = true) }
-            } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = e.message ?: "Sign in failed. Please try again.") }
+                val idToken = auth.handleResult(data)
+
+                val response = api.connectGoogleAccount(
+                    token = "Bearer $idToken",
+                )
+
+                if (!response.isSuccessful) {
+                    val message = when (response.code()) {
+                        401 -> "The API could not verify your Google sign-in."
+                        403 -> "The API refused access to your account."
+                        else ->
+                            "Could not connect your account " +
+                                    "(HTTP ${response.code()}). Please try again."
+                    }
+
+                    throw IllegalStateException(message)
+                }
+
+                checkNotNull(response.body()) {
+                    "The API returned no account information. Please try again."
+                }
+
+                tokens.save(idToken)
+
+                _state.update {
+                    it.copy(
+                        loading = false,
+                        error = null,
+                        signedIn = true,
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                // Cancellation is not a failed Google or network request.
+                throw cancelled
+            } catch (error: Exception) {
+                tokens.clear()
+
+                _state.update {
+                    it.copy(
+                        loading = false,
+                        signedIn = false,
+                        error = error.message
+                            ?: "Sign in failed. Please try again.",
+                    )
+                }
             }
         }
     }
 
     companion object {
-        /** Error shown when GOOGLE_CLIENT_ID is missing from local.properties. */
-        const val NOT_CONFIGURED = "Google sign in is not set up yet. Add GOOGLE_CLIENT_ID to local.properties."
+        const val NOT_CONFIGURED =
+            "Google sign in is not set up yet. " +
+                    "Add GOOGLE_CLIENT_ID to local.properties."
 
-        /** Factory that passes the sign in provider and token store to the ViewModel. */
-        fun factory(auth: AuthProvider, tokens: TokenStore): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LoginViewModel(auth, tokens) }
+        /** Supplies real dependencies; tests can inject a fake API directly. */
+        fun factory(
+            auth: AuthProvider,
+            tokens: TokenStore,
+            api: BrainwormApiService = RetrofitClient.instance,
+        ): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                LoginViewModel(auth, tokens, api)
+            }
         }
     }
 }

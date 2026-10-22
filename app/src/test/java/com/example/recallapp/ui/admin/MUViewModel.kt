@@ -1,8 +1,10 @@
 package com.example.recallapp.ui.admin
 
 import com.example.recallapp.data.BrainwormApiService
+import com.example.recallapp.data.RecallPageDto
 import com.example.recallapp.data.RegistryItem
 import com.example.recallapp.data.SpringPage
+import com.example.recallapp.data.UpdateUserRoleRequest
 import com.example.recallapp.data.UserDto
 import com.example.recallapp.data.UserPageDto
 import java.io.IOException
@@ -18,9 +20,6 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
-import com.example.recallapp.data.UpdateUserRoleRequest
-import com.example.recallapp.data.RecallDto
-import com.example.recallapp.data.RecallPageDto
 
 /**
  * Tests user loading and searching without Android UI or a running API.
@@ -79,7 +78,6 @@ class ManageUsersViewModelTest {
         vm.updateQuery("")
         assertEquals(2, vm.state.value.visibleUsers.size)
 
-        // Searching did not trigger additional HTTP requests.
         assertEquals(listOf(0, 1), api.requestedPages)
     }
 
@@ -162,56 +160,59 @@ private class FakeUsersApi : BrainwormApiService {
         return Response.success(pages[page])
     }
 
-    override suspend fun deleteMyAccount(token: String): Response<Unit> = error("Not used in user tests.")
+    /** Required by the interface; loading users does not perform login. */
+    override suspend fun connectGoogleAccount(
+        token: String,
+    ): Response<UserDto> = error("Not used in user-loading tests.")
+
+    override suspend fun deleteMyAccount(
+        token: String,
+    ): Response<Unit> = error("Not used in user-loading tests.")
 
     override suspend fun getRegistryItems(
         token: String,
         page: Int,
         size: Int,
-    ): Response<SpringPage<RegistryItem>> = error("Not used in user tests.")
+    ): Response<SpringPage<RegistryItem>> =
+        error("Not used in user-loading tests.")
 
     override suspend fun getRegistryItem(
         token: String,
         itemId: Long,
-    ): Response<RegistryItem> = error("Not used in user tests.")
+    ): Response<RegistryItem> =
+        error("Not used in user-loading tests.")
 
     override suspend fun createRegistryItem(
         token: String,
         item: RegistryItem,
-    ): Response<RegistryItem> = error("Not used in user tests.")
+    ): Response<RegistryItem> =
+        error("Not used in user-loading tests.")
 
     override suspend fun updateRegistryItem(
         token: String,
         itemId: Long,
         item: RegistryItem,
-    ): Response<RegistryItem> = error("Not used in user tests.")
+    ): Response<RegistryItem> =
+        error("Not used in user-loading tests.")
 
     override suspend fun deleteRegistryItem(
         token: String,
         itemId: Long,
-    ): Response<Unit> = error("Not used in user tests.")
+    ): Response<Unit> = error("Not used in user-loading tests.")
 
-    /**
-     * Satisfies the API interface.
-     * Existing loading/search tests should never call this operation.
-     */
     override suspend fun updateUserRole(
         userId: Long,
         request: UpdateUserRoleRequest,
-    ): Response<UserDto> = error("Not used in loading tests.")
+    ): Response<UserDto> = error("Not used in user-loading tests.")
 
-    /**
-     * Satisfies the API interface.
-     * Existing loading/search tests should never call this operation.
-     */
     override suspend fun deleteUser(
         userId: Long,
-    ): Response<Unit> = error("Not used in loading tests.")
+    ): Response<Unit> = error("Not used in user-loading tests.")
 
-    /** Recall loading is not exercised by these user tests. */
     override suspend fun getRecalls(
         page: Int,
         size: Int,
         product: String?,
-    ): Response<RecallPageDto> = error("Not used in user tests.")
+    ): Response<RecallPageDto> =
+        error("Not used in user-loading tests.")
 }

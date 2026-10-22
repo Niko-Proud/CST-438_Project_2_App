@@ -89,6 +89,7 @@ interface BrainwormApiService {
      */
     @GET("users")
     suspend fun getUsers(
+        @Header("Authorization") token: String,
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 20,
     ): Response<UserPageDto>
@@ -99,6 +100,7 @@ interface BrainwormApiService {
      */
     @PATCH("users/{userId}")
     suspend fun updateUserRole(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Long,
         @Body request: UpdateUserRoleRequest,
     ): Response<UserDto>
@@ -108,6 +110,7 @@ interface BrainwormApiService {
      */
     @DELETE("users/{userId}")
     suspend fun deleteUser(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Long,
     ): Response<Unit>
 
@@ -121,4 +124,16 @@ interface BrainwormApiService {
         @Query("size") size: Int = 20,
         @Query("product") product: String? = null,
     ): Response<RecallPageDto>
+
+    /** Creates or retrieves the database account for the verified Google token. */
+    @POST("users/me")
+    suspend fun connectGoogleAccount(
+        @Header("Authorization") token: String,
+    ): Response<UserDto>
+
+    /** Reads the signed-in user's existing database profile. */
+    @GET("users/me")
+    suspend fun getCurrentUser(
+        @Header("Authorization") token: String,
+    ): Response<UserDto>
 }

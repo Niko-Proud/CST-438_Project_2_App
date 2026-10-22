@@ -2,6 +2,7 @@ package com.example.recallapp.ui.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.recallapp.auth.TokenStore
 import com.example.recallapp.data.BrainwormApiService
 import com.example.recallapp.data.UpdateUserRoleRequest
 import com.example.recallapp.data.UserDto
@@ -39,13 +40,14 @@ data class ManageUsersUiState(
 }
 
 /**
- * Owns user-list state and coordinates requests to the API.
+ * Owns user-list state and coordinates authenticated API requests.
  *
- * Receiving the API through the constructor allows tests to use a fake.
- * This class does not determine whether the caller has admin permission.
+ * Receives the same TokenStore used by login.
+ * The backend determines whether the caller has admin permission.
  */
 class ManageUsersViewModel(
     private val api: BrainwormApiService,
+    private val tokens: TokenStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ManageUsersUiState())
@@ -55,6 +57,13 @@ class ManageUsersViewModel(
 
     init {
         loadUsers()
+    }
+
+    /** Gets the saved credentials for a protected API request. */
+    private fun authorizationHeader(): String {
+        return checkNotNull(tokens.bearer()) {
+            "You are signed out. Please sign in again."
+        }
     }
 
     /** Updates the username filter without requesting data again. */
@@ -94,20 +103,18 @@ class ManageUsersViewModel(
 
                 while (true) {
                     val response = api.getUsers(
+                        token = authorizationHeader(),
                         page = requestedPage,
                         size = 20,
                     )
 
-                    if (!response.isSuccessful) {
-                        throw IllegalStateException(
-                            "Could not load users (HTTP ${response.code()}).",
-                        )
+                    check(response.isSuccessful) {
+                        "Could not load users (HTTP ${response.code()})."
                     }
 
-                    val page = response.body()
-                        ?: throw IllegalStateException(
-                            "The server returned no user data.",
-                        )
+                    val page = checkNotNull(response.body()) {
+                        "The server returned no user data."
+                    }
 
                     check(page.number == requestedPage) {
                         "The server returned an unexpected page."
@@ -148,7 +155,7 @@ class ManageUsersViewModel(
 
     /**
      * Promotes or demotes a user after the screen obtains confirmation.
-     * Uses the server's returned record rather than assuming the update worked.
+     * Uses the server's returned record instead of assuming success.
      */
     fun changeRole(userId: Long, makeAdmin: Boolean) {
         if (!beginAction(userId)) return
@@ -156,20 +163,18 @@ class ManageUsersViewModel(
         viewModelScope.launch {
             try {
                 val response = api.updateUserRole(
+                    token = authorizationHeader(),
                     userId = userId,
                     request = UpdateUserRoleRequest(admin = makeAdmin),
                 )
 
-                if (!response.isSuccessful) {
-                    throw IllegalStateException(
-                        "Could not change role (HTTP ${response.code()}).",
-                    )
+                check(response.isSuccessful) {
+                    "Could not change role (HTTP ${response.code()})."
                 }
 
-                val updatedUser = response.body()
-                    ?: throw IllegalStateException(
-                        "The server returned no updated user. Reload to verify.",
-                    )
+                val updatedUser = checkNotNull(response.body()) {
+                    "The server returned no updated user. Reload to verify."
+                }
 
                 check(updatedUser.id == userId) {
                     "The server returned a different user. Reload to verify."
@@ -206,11 +211,14 @@ class ManageUsersViewModel(
 
         viewModelScope.launch {
             try {
-                val response = api.deleteUser(userId)
+                val response = api.deleteUser(
+                    token = authorizationHeader(),
+                    userId = userId,
+                )
 
                 if (!response.isSuccessful) {
                     throw IllegalStateException(
-                        "Could not delete user (HTTP ${response.code()}).",
+                        "Could not delete user (HTTP ${response.code()})."
                     )
                 }
 

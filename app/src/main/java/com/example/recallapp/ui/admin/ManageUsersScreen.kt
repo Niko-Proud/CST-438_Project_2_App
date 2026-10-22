@@ -18,17 +18,24 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.recallapp.data.RetrofitClient
 import com.example.recallapp.data.UserDto
 import com.example.recallapp.ui.theme.Lab
+import com.example.recallapp.auth.TokenStore
 
 /**
- * Connects screen callbacks to the ViewModel.
- * Only the ViewModel makes API requests and changes the displayed user list.
+ * Connects the screen to the API using the existing login session.
+ * The ViewModel handles requests and updates the displayed user list.
  */
 @Composable
-fun ManageUsersRoute(onBack: () -> Unit) {
+fun ManageUsersRoute(
+    tokens: TokenStore,
+    onBack: () -> Unit,
+) {
     val vm: ManageUsersViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                ManageUsersViewModel(RetrofitClient.instance)
+                ManageUsersViewModel(
+                    api = RetrofitClient.instance,
+                    tokens = tokens,
+                )
             }
         },
     )
@@ -45,7 +52,6 @@ fun ManageUsersRoute(onBack: () -> Unit) {
         onDismissActionError = vm::clearActionError,
     )
 }
-
 /**
  * Displays users and confirms potentially destructive actions.
  * Opening a dialog makes no API request; confirming invokes the callback.
