@@ -121,4 +121,11 @@ interface BrainwormApiService {
         @Query("size") size: Int = 20,
         @Query("product") product: String? = null,
     ): Response<RecallPageDto>
+
+    /** Creates or retrieves the database account for the verified Google token. */
+    @POST("users/me")
+    suspend fun connectGoogleAccount(
+        @Header("Authorization") token: String,
+    ): Response<UserDto>
+
 }
