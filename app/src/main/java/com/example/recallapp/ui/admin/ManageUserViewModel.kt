@@ -61,10 +61,9 @@ class ManageUsersViewModel(
 
     /** Gets the saved credentials for a protected API request. */
     private fun authorizationHeader(): String {
-        return tokens.bearer()
-            ?: throw IllegalStateException(
-                "You are signed out. Please sign in again."
-            )
+        return checkNotNull(tokens.bearer()) {
+            "You are signed out. Please sign in again."
+        }
     }
 
     /** Updates the username filter without requesting data again. */
@@ -109,16 +108,13 @@ class ManageUsersViewModel(
                         size = 20,
                     )
 
-                    if (!response.isSuccessful) {
-                        throw IllegalStateException(
-                            "Could not load users (HTTP ${response.code()})."
-                        )
+                    check(response.isSuccessful) {
+                        "Could not load users (HTTP ${response.code()})."
                     }
 
-                    val page = response.body()
-                        ?: throw IllegalStateException(
-                            "The server returned no user data."
-                        )
+                    val page = checkNotNull(response.body()) {
+                        "The server returned no user data."
+                    }
 
                     check(page.number == requestedPage) {
                         "The server returned an unexpected page."
@@ -172,16 +168,13 @@ class ManageUsersViewModel(
                     request = UpdateUserRoleRequest(admin = makeAdmin),
                 )
 
-                if (!response.isSuccessful) {
-                    throw IllegalStateException(
-                        "Could not change role (HTTP ${response.code()})."
-                    )
+                check(response.isSuccessful) {
+                    "Could not change role (HTTP ${response.code()})."
                 }
 
-                val updatedUser = response.body()
-                    ?: throw IllegalStateException(
-                        "The server returned no updated user. Reload to verify."
-                    )
+                val updatedUser = checkNotNull(response.body()) {
+                    "The server returned no updated user. Reload to verify."
+                }
 
                 check(updatedUser.id == userId) {
                     "The server returned a different user. Reload to verify."

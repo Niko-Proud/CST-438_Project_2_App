@@ -145,7 +145,10 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
 
         // Victoria's admin screens. Back returns to the admin console.
         composable(Routes.MANAGE_USERS) {
-            ManageUsersRoute(onBack = { nav.popBackStack() })
+            ManageUsersRoute(
+                tokens = tokens,
+                onBack = { nav.popBackStack() },
+            )
         }
 
         composable(Routes.MANAGE_RECALLS) {

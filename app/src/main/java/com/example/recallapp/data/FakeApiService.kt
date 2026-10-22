@@ -47,15 +47,54 @@ class FakeApiService : BrainwormApiService {
         return Response.success(Unit)
     }
 
-    // Admin calls are not part of the fake data yet, so they return empty results.
-    override suspend fun getUsers(page: Int, size: Int): Response<UserPageDto> =
-        Response.success(UserPageDto(emptyList(), number = 0, last = true, totalElements = 0))
+    // Admin data is not implemented in this offline fake.
+    override suspend fun getUsers(
+        token: String,
+        page: Int,
+        size: Int,
+    ): Response<UserPageDto> =
+        Response.success(
+            UserPageDto(
+                emptyList(),
+                number = 0,
+                last = true,
+                totalElements = 0,
+            )
+        )
 
-    override suspend fun updateUserRole(userId: Long, request: UpdateUserRoleRequest): Response<UserDto> =
+    override suspend fun updateUserRole(
+        token: String,
+        userId: Long,
+        request: UpdateUserRoleRequest,
+    ): Response<UserDto> =
         Response.error(404, "".toResponseBody(null))
 
-    override suspend fun deleteUser(userId: Long): Response<Unit> = Response.success(Unit)
+    override suspend fun deleteUser(
+        token: String,
+        userId: Long,
+    ): Response<Unit> = Response.success(Unit)
 
-    override suspend fun getRecalls(page: Int, size: Int, product: String?): Response<RecallPageDto> =
-        Response.success(RecallPageDto(emptyList(), number = 0, last = true, totalElements = 0))
+    override suspend fun getRecalls(
+        page: Int,
+        size: Int,
+        product: String?,
+    ): Response<RecallPageDto> =
+        Response.success(
+            RecallPageDto(
+                emptyList(),
+                number = 0,
+                last = true,
+                totalElements = 0,
+            )
+        )
+
+    /** Account linking requires the real backend. */
+    override suspend fun connectGoogleAccount(
+        token: String,
+    ): Response<UserDto> =
+        Response.error(
+            501,
+            "Google account linking requires the real API."
+                .toResponseBody(null),
+        )
 }
