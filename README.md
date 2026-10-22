@@ -15,7 +15,6 @@ https://github.com/Niko-Proud/CST-438_Project_2_API
 ## Links
 
 - Live API: https://brain-worm-api.onrender.com
-- Swagger: https://brain-worm-api.onrender.com/swagger-ui.html
 
 The server can take a little while to wake up the first time.
 
