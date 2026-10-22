@@ -12,14 +12,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -99,41 +103,45 @@ private fun AdminHeader(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Lab.Teal)
             .statusBarsPadding()
             .padding(
-                start = 20.dp,
+                start = 8.dp,
                 end = 20.dp,
                 top = 8.dp,
-                bottom = 28.dp,
+                bottom = 4.dp,
             ),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Text(
-                text = "Back to My Items",
-                style = MaterialTheme.typography.labelLarge,
-                color = Lab.Mint,
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back to My Items",
+                tint = Lab.Ink,
             )
         }
 
-        Text(
-            text = "BRAINWORM",
-            style = MaterialTheme.typography.headlineSmall,
-            color = Color.White,
-        )
+        Column(
+            modifier = Modifier.padding(start = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = "BRAINWORM",
+                style = MaterialTheme.typography.labelMedium,
+                color = Lab.TealDark,
+            )
 
-        Text(
-            text = "Admin Console",
-            style = MaterialTheme.typography.displaySmall,
-            color = Color.White,
-        )
+            Text(
+                text = "Admin Console",
+                style = MaterialTheme.typography.displaySmall,
+                color = Lab.Ink,
+            )
 
-        Text(
-            text = "Manage food recalls and user access.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Lab.Mint,
-        )
+            Text(
+                text = "Manage food recalls and user access.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Lab.Muted,
+            )
+        }
     }
 }
 
@@ -152,9 +160,10 @@ private fun AdminActionCard(
         modifier = Modifier
             .padding(horizontal = 16.dp)
             .fillMaxWidth()
+            .shadow(2.dp, RoundedCornerShape(14.dp))
             .background(
                 color = Lab.Surface,
-                shape = RoundedCornerShape(4.dp),
+                shape = RoundedCornerShape(14.dp),
             )
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -173,9 +182,9 @@ private fun AdminActionCard(
 
         Button(
             onClick = onClick,
-            shape = MaterialTheme.shapes.small,
+            shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Lab.Teal,
+                containerColor = Lab.TealDark,
                 contentColor = Color.White,
             ),
         ) {

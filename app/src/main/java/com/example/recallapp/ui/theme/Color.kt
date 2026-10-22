@@ -17,4 +17,11 @@ object Lab {
     val Accent = Color(0xFFFFBE2E)
     val AccentDark = Color(0xFF162E51)
     val Recalled = Color(0xFFB50909)
+
+    // Food status colors: green safe, orange check, red recalled.
+    val Safe = Color(0xFF2E7D32)
+    val SafeSoft = Color(0xFFE8F5E9)
+    val Caution = Color(0xFFE65100)
+    val CautionSoft = Color(0xFFFFF3E0)
+    val DangerSoft = Color(0xFFFDECEA)
 }

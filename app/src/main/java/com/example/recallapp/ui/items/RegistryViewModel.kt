@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.recallapp.BuildConfig
 import com.example.recallapp.auth.TokenStore
 import com.example.recallapp.data.BrainwormApiService
+import com.example.recallapp.data.FakeApiService
 import com.example.recallapp.data.RegistryItem
 import com.example.recallapp.data.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,8 +15,34 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class RegistryViewModel(private val tokens: TokenStore) : ViewModel() {
-    private val api: BrainwormApiService = RetrofitClient.instance
+/** A short, readable message for an HTTP error code from the API. */
+fun messageForCode(code: Int): String = when (code) {
+    401 -> "Your sign-in has expired. Please sign in again."
+    403 -> "You don't have permission to do this."
+    404 -> "This food was not found. It may have been deleted."
+    in 500..599 -> "Something went wrong on our server. Try again in a moment."
+    else -> "Something went wrong (code $code). Try again."
+}
+
+/** Shown when the phone cannot reach the server at all. */
+const val NETWORK_MESSAGE = "Could not reach the server. Check your internet and try again."
+
+/** Turns an API item into a home screen row, using the first matched recall if there is one. */
+fun RegistryItem.toItemUi(): ItemUi {
+    val recall = recalledFoods?.firstOrNull()
+    return ItemUi(
+        id = id ?: 0,
+        product = product,
+        batch = batch,
+        recallReason = recall?.let { it.contaminant ?: "Recalled" },
+        recallDate = recall?.recallDate,
+    )
+}
+
+class RegistryViewModel(
+    private val tokens: TokenStore,
+    private val api: BrainwormApiService = RetrofitClient.instance,
+) : ViewModel() {
     private val bearerToken: String
         get() = tokens.bearer() ?: ""
 
@@ -26,6 +54,10 @@ class RegistryViewModel(private val tokens: TokenStore) : ViewModel() {
     val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
     private val _listError = MutableStateFlow<ScreenError?>(null)
     val listError: StateFlow<ScreenError?> = _listError.asStateFlow()
+
+    private val _signedOut = MutableStateFlow(false)
+    /** Becomes true when the server says the token is no longer valid (401). The screen then goes to login. */
+    val signedOut: StateFlow<Boolean> = _signedOut.asStateFlow()
 
     private var currentPage = 0
     private var isLastPage = false
@@ -49,23 +81,42 @@ class RegistryViewModel(private val tokens: TokenStore) : ViewModel() {
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null) {
-                        _items.value = body.content.map { ItemUi(id = it.id ?: 0, product = it.product, batch = it.batch) }
-                        isLastPage = body.last
+                        _items.value = body.content.map { it.toItemUi() }
+                        isLastPage = body.isLastPage()
                     }
                 }
                 else {
-                    _listError.value = ScreenError("Error ${response.code()}", "FAILED TO LOAD LIST", "RETRY") { loadItems() }
+                    handleListError(response.code())
                 }
             } catch (e: Exception) {
-                _listError.value = ScreenError("NETWORK ERROR", e.message ?: "UNKNOWN ERROR", "RETRY") { loadItems() }
+                _listError.value = ScreenError("No connection", NETWORK_MESSAGE, "Try again") { loadItems() }
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
+    /** Deletes the user's account on the server, then signs them out. onComplete runs only on success. */
+    fun deleteAccount(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = api.deleteMyAccount(bearerToken)
+                if (response.isSuccessful) {
+                    tokens.clear()
+                    _items.value = emptyList()
+                    onComplete()
+                } else {
+                    handleListError(response.code())
+                }
+            } catch (e: Exception) {
+                _listError.value = ScreenError("No connection", NETWORK_MESSAGE, "OK") { loadItems() }
+            }
+        }
+    }
+
     fun loadMoreItems() {
-        if (_isLoadingMore.value || isLastPage) {
+        // Wait for the first page, and stop if it failed.
+        if (_isLoadingMore.value || _isLoading.value || _listError.value != null || isLastPage) {
             return
         }
         _isLoadingMore.value = true
@@ -77,10 +128,10 @@ class RegistryViewModel(private val tokens: TokenStore) : ViewModel() {
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null) {
-                        val newItems = body.content.map { ItemUi(id = it.id ?: 0, product = it.product, batch = it.batch) }
+                        val newItems = body.content.map { it.toItemUi() }
                         _items.value += newItems
                         currentPage = nextPage
-                        isLastPage = body.last
+                        isLastPage = body.isLastPage()
                     }
                 }
             } catch (e: Exception) {} finally {
@@ -96,13 +147,21 @@ class RegistryViewModel(private val tokens: TokenStore) : ViewModel() {
                 val response = api.getRegistryItem(bearerToken, itemId)
                 if (response.isSuccessful) {
                     val item = response.body()
-                    if (item != null) { _detailState.value = DetailUiState.Success(item.product, item.batch ?: "") }
+                    if (item != null) {
+                        val row = item.toItemUi()
+                        _detailState.value = DetailUiState.Success(
+                            product = item.product,
+                            batch = item.batch ?: "",
+                            recallReason = row.recallReason,
+                            recallDate = row.recallDate,
+                        )
+                    }
                 }
                 else {
-                    _detailState.value = DetailUiState.Error(response.code(), "FAILED TO LOAD ITEM")
+                    handleDetailError(response.code())
                 }
             } catch (e: Exception) {
-                _detailState.value = DetailUiState.Error(500, e.message ?: "NETWORK ERROR")
+                _detailState.value = DetailUiState.Error(0, NETWORK_MESSAGE)
             }
         }
     }
@@ -124,10 +183,10 @@ class RegistryViewModel(private val tokens: TokenStore) : ViewModel() {
                     onComplete()
                 }
                 else {
-                    _detailState.value = DetailUiState.Error(response.code(), "FAILED TO SAVE ITEM")
+                    handleDetailError(response.code())
                 }
             } catch (e: Exception) {
-                _detailState.value = DetailUiState.Error(500, "NETWORK ERROR")
+                _detailState.value = DetailUiState.Error(0, NETWORK_MESSAGE)
             }
         }
     }
@@ -141,17 +200,49 @@ class RegistryViewModel(private val tokens: TokenStore) : ViewModel() {
                     onComplete()
                 }
                 else {
-                    _detailState.value = DetailUiState.Error(response.code(), "FAILED TO DELETE ITEM")
+                    handleListError(response.code())
                 }
             } catch (e: Exception) {
-                _detailState.value = DetailUiState.Error(500, "NETWORK ERROR")
+                _listError.value = ScreenError("No connection", NETWORK_MESSAGE, "Try again") { loadItems() }
             }
         }
     }
 
+    /** 401 signs the user out. Other codes show a message on the home screen with a Try again button. */
+    private fun handleListError(code: Int) {
+        if (code == 401) {
+            signOut()
+            return
+        }
+        val title = when (code) {
+            403 -> "No access"
+            404 -> "Not found"
+            in 500..599 -> "Server problem"
+            else -> "Error $code"
+        }
+        _listError.value = ScreenError(title, messageForCode(code), "Try again") { loadItems() }
+    }
+
+    /** 401 signs the user out. Other codes show the message on the detail screen. */
+    private fun handleDetailError(code: Int) {
+        if (code == 401) {
+            signOut()
+            return
+        }
+        _detailState.value = DetailUiState.Error(code, messageForCode(code))
+    }
+
+    private fun signOut() {
+        tokens.clear()
+        _signedOut.value = true
+    }
+
     companion object {
         fun factory(tokens: TokenStore): ViewModelProvider.Factory = viewModelFactory {
-            initializer { RegistryViewModel(tokens) }
+            initializer {
+                val api = if (BuildConfig.USE_FAKE_API) FakeApiService() else RetrofitClient.instance
+                RegistryViewModel(tokens, api)
+            }
         }
     }
 }
