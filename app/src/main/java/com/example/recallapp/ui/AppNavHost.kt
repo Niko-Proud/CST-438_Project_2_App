@@ -4,11 +4,13 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,6 +21,9 @@ import com.example.recallapp.auth.TokenStore
 import com.example.recallapp.ui.admin.AdminConsoleScreen
 import com.example.recallapp.ui.admin.ManageUsersRoute
 import com.example.recallapp.ui.items.MyItemsScreen
+import com.example.recallapp.ui.items.RegistryDetailScreen
+import com.example.recallapp.ui.items.RegistryViewModel
+import com.example.recallapp.ui.items.DetailUiState
 import com.example.recallapp.ui.login.LoginRoute
 import com.example.recallapp.ui.login.LoginViewModel
 import com.example.recallapp.ui.admin.ManageRecallsRoute
@@ -29,9 +34,10 @@ object Routes {
     const val ITEMS = "items"
     const val SETTINGS = "settings"
     const val ADMIN = "admin"
-
     const val MANAGE_RECALLS = "manage_recalls"
     const val MANAGE_USERS = "manage_users"
+    const val DETAIL = "detail/{itemId}"
+    fun detail(itemId: Long) = "detail/$itemId"
 }
 
 /**
@@ -126,35 +132,35 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
             }
 
             // Displays the home screen after successful login.
-            composable(Routes.ITEMS) {
-                MyItemsScreen(
+//             composable(Routes.ITEMS) {
+                //MyItemsScreen(
                     // Registry data and item actions are not connected yet.
-                    items = emptyList(),
+//                     items = emptyList(),
 
-                    // Hide the header shortcut; the console opens from Settings.
-                    // This UI parameter does not change a database role.
-                    isAdmin = false,
+//                     // Hide the header shortcut; the console opens from Settings.
+//                     // This UI parameter does not change a database role.
+//                     isAdmin = false,
 
-                    loading = false,
-                    loadingMore = false,
-                    error = null,
-                    onOpen = {},
-                    onAdd = {},
-                    onAdmin = {},
-                    onLoadMore = {},
-                    onSignOut = {
-                        tokens.clear()
+//                     loading = false,
+//                     loadingMore = false,
+//                     error = null,
+//                     onOpen = {},
+//                     onAdd = {},
+//                     onAdmin = {},
+//                     onLoadMore = {},
+//                     onSignOut = {
+//                         tokens.clear()
 
-                        nav.navigate(Routes.LOGIN) {
-                            // Remove the signed-in screens from history.
-                            popUpTo(Routes.ITEMS) {
-                                inclusive = true
-                            }
-                            launchSingleTop = true
-                        }
-                    },
-                )
-            }
+//                         nav.navigate(Routes.LOGIN) {
+//                             // Remove the signed-in screens from history.
+//                             popUpTo(Routes.ITEMS) {
+//                                 inclusive = true
+//                             }
+//                             launchSingleTop = true
+//                         }
+//                     },
+//                 )
+//             }
 
             // Settings provides the entry point to the admin console.
             composable(Routes.SETTINGS) {
@@ -228,6 +234,67 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                     onBack = { nav.popBackStack() },
                 )
             }
+        // The list stays empty until the registry API is connected in the next issue.
+        // Note: Lines 239 to 262 are written by Alex.
+        composable(Routes.ITEMS) {
+            val vm: RegistryViewModel = viewModel(factory = RegistryViewModel.factory(tokens))
+            val items by vm.items.collectAsState()
+            val isLoading by vm.isLoading.collectAsState()
+            val isLoadingMore by vm.isLoadingMore.collectAsState()
+            val error by vm.listError.collectAsState()
+
+            MyItemsScreen(
+                items = items,
+                isAdmin = false,
+                loading = isLoading,
+                loadingMore = isLoadingMore,
+                error = error,
+                onOpen = { itemId -> nav.navigate(Routes.detail(itemId)) },
+                onAdd = { nav.navigate(Routes.detail(-1L)) },
+                onAdmin = {},
+                onLoadMore = { vm.loadMoreItems() },
+                onSignOut = {
+                    tokens.clear()
+                    nav.navigate(Routes.LOGIN) { popUpTo(Routes.ITEMS) { inclusive = true } }
+                },
+            )
+        }
+
+        composable(Routes.DETAIL) { backStackEntry ->
+            val itemIdStr = backStackEntry.arguments?.getString("itemId")
+            val itemId = itemIdStr?.toLongOrNull() ?: -1L
+            val isCreatingNew = itemId == -1L
+            val vm: RegistryViewModel = viewModel(factory = RegistryViewModel.factory(tokens))
+            val uiState by vm.detailState.collectAsState()
+
+            LaunchedEffect(itemId) {
+                if (!isCreatingNew) {
+                    vm.loadSingleItem(itemId)
+                } else {
+                    vm.loadSingleItem(-1L)
+                }
+            }
+
+            RegistryDetailScreen(
+                uiState = if (isCreatingNew && uiState is DetailUiState.Loading) DetailUiState.Success(
+                    "",
+                    ""
+                ) else uiState,
+                isCreatingNew = isCreatingNew,
+                onSaveClick = { product, batch ->
+                    val idToSave = if (isCreatingNew) null else itemId
+                    vm.saveItem(idToSave, product, batch) {
+                        nav.popBackStack()
+                    }
+                },
+                onDeleteClick = {
+                    if (!isCreatingNew) {
+                        vm.deleteItem(itemId) {
+                            nav.popBackStack()
+                        }
+                    }
+                }
+            )
         }
     }
 }
