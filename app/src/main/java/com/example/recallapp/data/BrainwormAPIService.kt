@@ -89,6 +89,7 @@ interface BrainwormApiService {
      */
     @GET("users")
     suspend fun getUsers(
+        @Header("Authorization") token: String,
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 20,
     ): Response<UserPageDto>
@@ -99,6 +100,7 @@ interface BrainwormApiService {
      */
     @PATCH("users/{userId}")
     suspend fun updateUserRole(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Long,
         @Body request: UpdateUserRoleRequest,
     ): Response<UserDto>
@@ -108,6 +110,7 @@ interface BrainwormApiService {
      */
     @DELETE("users/{userId}")
     suspend fun deleteUser(
+        @Header("Authorization") token: String,
         @Path("userId") userId: Long,
     ): Response<Unit>
 
