@@ -8,6 +8,7 @@ import com.example.recallapp.BuildConfig
 import com.example.recallapp.auth.TokenStore
 import com.example.recallapp.data.BrainwormApiService
 import com.example.recallapp.data.FakeApiService
+import com.example.recallapp.data.API_UNAVAILABLE_MESSAGE
 import com.example.recallapp.data.RegistryItem
 import com.example.recallapp.data.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +26,9 @@ fun messageForCode(code: Int): String = when (code) {
 }
 
 /** Shown when the phone cannot reach the server at all. */
-const val NETWORK_MESSAGE = "Could not reach the server. Check your internet and try again."
+// Render's free tier can be asleep for several minutes, so a connection failure is
+// not always a broken network. The message gives the user a useful next step.
+const val NETWORK_MESSAGE = API_UNAVAILABLE_MESSAGE
 
 /** Turns an API item into a home screen row, using the first matched recall if there is one. */
 fun RegistryItem.toItemUi(): ItemUi {
@@ -134,7 +137,10 @@ class RegistryViewModel(
                         isLastPage = body.isLastPage()
                     }
                 }
-            } catch (e: Exception) {} finally {
+            } catch (e: Exception) {
+                // Pagination is optional; keep the already-loaded foods on screen when
+                // a background page fails instead of replacing them with an error state.
+            } finally {
                 _isLoadingMore.value = false
             }
         }
@@ -238,9 +244,15 @@ class RegistryViewModel(
     }
 
     companion object {
-        fun factory(tokens: TokenStore): ViewModelProvider.Factory = viewModelFactory {
+        fun factory(
+            tokens: TokenStore,
+            demoApi: BrainwormApiService? = null,
+        ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                val api = if (BuildConfig.USE_FAKE_API) FakeApiService() else RetrofitClient.instance
+                val api = demoApi
+                    // BuildConfig controls the project-wide fake API switch; demoApi is
+                    // the explicit debug-only override used by the Skip login button.
+                    ?: if (BuildConfig.USE_FAKE_API) FakeApiService() else RetrofitClient.instance
                 RegistryViewModel(tokens, api)
             }
         }

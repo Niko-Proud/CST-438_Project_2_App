@@ -1,6 +1,14 @@
 package com.example.recallapp.data
 import retrofit2.Response
-import retrofit2.http.*
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.PATCH
+import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
+import retrofit2.http.Query
 
 /** Paging info in the "page" object of a Spring PagedModel response. */
 data class PageMeta(
@@ -21,9 +29,7 @@ data class SpringPage<T>(
 ) {
     /** True when there are no more pages to load. */
     fun isLastPage(): Boolean {
-        last?.let { return it }
-        val meta = page ?: return true
-        return meta.number + 1 >= meta.totalPages
+        return last ?: page?.let { it.number + 1 >= it.totalPages } ?: true
     }
 }
 
@@ -45,8 +51,16 @@ data class RegistryItem(
 )
 
 interface BrainwormApiService {
+    /** Creates or retrieves the database account for a verified Google token. */
+    @POST("users/me")
+    suspend fun connectGoogleAccount(
+        @Header("Authorization") token: String,
+    ): Response<UserDto>
+
     /** Deletes the signed in user's own account and all their data. */
     @DELETE("users/me")
+    // Every user-owned request carries the Google token explicitly so Retrofit cannot
+    // accidentally send a request that the API will reject as anonymous.
     suspend fun deleteMyAccount(
         @Header("Authorization") token: String
     ): Response<Unit>

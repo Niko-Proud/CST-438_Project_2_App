@@ -21,6 +21,10 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Run Detekt
+        # Catch maintainability problems before the unit-test job reports success.
+        run: ./gradlew detekt
+
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
 

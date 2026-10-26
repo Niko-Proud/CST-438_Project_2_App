@@ -22,6 +22,7 @@ import retrofit2.Response
 /** API that answers every request with the same error code. */
 class ErrorApi(private val code: Int) : BrainwormApiService {
     private fun <T> error(): Response<T> = Response.error(code, "".toResponseBody(null))
+    override suspend fun connectGoogleAccount(token: String): Response<UserDto> = error()
     override suspend fun deleteMyAccount(token: String): Response<Unit> = error()
     override suspend fun getRegistryItems(token: String, page: Int, size: Int): Response<SpringPage<RegistryItem>> = error()
     override suspend fun getRegistryItem(token: String, itemId: Long): Response<RegistryItem> = error()

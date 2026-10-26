@@ -3,6 +3,9 @@ package com.example.recallapp.ui.login
 import android.content.Intent
 import com.example.recallapp.auth.AuthProvider
 import com.example.recallapp.auth.TokenStore
+import com.example.recallapp.data.BrainwormApiService
+import com.example.recallapp.data.FakeApiService
+import com.example.recallapp.data.UserDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -16,6 +19,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
+import retrofit2.Response
 
 /** Swaps Dispatchers.Main for a test dispatcher so viewModelScope runs in unit tests. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -34,6 +38,11 @@ class FakeAuthProvider(
         token ?: throw IllegalStateException("Sign in was cancelled.")
 }
 
+private class LoginApi : BrainwormApiService by FakeApiService() {
+    override suspend fun connectGoogleAccount(token: String): Response<UserDto> =
+        Response.success(UserDto(1L, "test-user", false))
+}
+
 /** Unit tests for the login screen state and token handling. */
 class LoginViewModelTest {
 
@@ -44,7 +53,7 @@ class LoginViewModelTest {
 
     @Test
     fun startSignIn_whenClientIdMissing_showsErrorAndDoesNotOpenGoogle() {
-        val vm = LoginViewModel(FakeAuthProvider(isConfigured = false), tokens)
+        val vm = LoginViewModel(FakeAuthProvider(isConfigured = false), tokens, LoginApi())
 
         val intent = vm.startSignIn()
 
@@ -55,7 +64,7 @@ class LoginViewModelTest {
 
     @Test
     fun successfulSignIn_savesTokenAndMarksSignedIn() {
-        val vm = LoginViewModel(FakeAuthProvider(token = "abc123"), tokens)
+        val vm = LoginViewModel(FakeAuthProvider(token = "abc123"), tokens, LoginApi())
 
         vm.onAuthResult(null)
 
@@ -67,7 +76,7 @@ class LoginViewModelTest {
 
     @Test
     fun cancelledSignIn_showsErrorAndStaysSignedOut() {
-        val vm = LoginViewModel(FakeAuthProvider(token = null), tokens)
+        val vm = LoginViewModel(FakeAuthProvider(token = null), tokens, LoginApi())
 
         vm.onAuthResult(null)
 
@@ -80,7 +89,7 @@ class LoginViewModelTest {
     fun savedToken_startsSignedIn() {
         tokens.save("existing-token")
 
-        val vm = LoginViewModel(FakeAuthProvider(), tokens)
+        val vm = LoginViewModel(FakeAuthProvider(), tokens, LoginApi())
 
         assertTrue(vm.state.value.signedIn)
     }

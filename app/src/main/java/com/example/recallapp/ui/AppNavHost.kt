@@ -11,6 +11,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -21,6 +23,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.recallapp.BuildConfig
 import com.example.recallapp.auth.AuthProvider
 import com.example.recallapp.auth.TokenStore
+import com.example.recallapp.data.FakeApiService
 import com.example.recallapp.ui.admin.AdminConsoleScreen
 import com.example.recallapp.ui.admin.ManageRecallsRoute
 import com.example.recallapp.ui.admin.ManageUsersRoute
@@ -46,6 +49,9 @@ object Routes {
 @Composable
 fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
     val nav = rememberNavController()
+    // Skip login is only a debug convenience; keeping this flag separate means a real
+    // Google sign-in still uses the live API instead of accidentally using fake data.
+    var demoMode by remember { mutableStateOf(false) }
     val start = if (tokens.isSignedIn) Routes.ITEMS else Routes.LOGIN
 
     NavHost(navController = nav, startDestination = start) {
@@ -55,13 +61,19 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
                 LoginRoute(
                     vm = vm,
                     onSignedIn = {
+                        demoMode = false
                         nav.navigate(Routes.ITEMS) { popUpTo(Routes.LOGIN) { inclusive = true } }
                     },
                 )
-                // Temporary: lets teammates open the app without Google login. Debug builds only.
+                // This keeps local UI work possible when Google OAuth is not configured.
                 if (BuildConfig.DEBUG) {
                     TextButton(
-                        onClick = { nav.navigate(Routes.ITEMS) { popUpTo(Routes.LOGIN) { inclusive = true } } },
+                        onClick = {
+                            demoMode = true
+                            nav.navigate(Routes.ITEMS) {
+                                popUpTo(Routes.LOGIN) { inclusive = true }
+                            }
+                        },
                         modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(8.dp),
                     ) { Text("Skip login") }
                 }
@@ -69,7 +81,12 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
         }
 
         composable(Routes.ITEMS) {
-            val vm: RegistryViewModel = viewModel(factory = RegistryViewModel.factory(tokens))
+            val vm: RegistryViewModel = viewModel(
+                factory = RegistryViewModel.factory(
+                    tokens = tokens,
+                    demoApi = if (demoMode) FakeApiService() else null,
+                ),
+            )
             val items by vm.items.collectAsState()
             val isLoading by vm.isLoading.collectAsState()
             val isLoadingMore by vm.isLoadingMore.collectAsState()
@@ -83,7 +100,7 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
 
             MyItemsScreen(
                 items = items,
-                // Temporary: shows the Admin button in debug builds until /users/me is connected.
+                // Admin access remains visible in debug builds while the backend role check is finalized.
                 isAdmin = BuildConfig.DEBUG,
                 loading = isLoading,
                 loadingMore = isLoadingMore,
@@ -110,7 +127,13 @@ fun AppNavHost(auth: AuthProvider, tokens: TokenStore) {
             val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull() ?: -1L
             val isCreatingNew = itemId == -1L
             val homeEntry = remember(backStackEntry) { nav.getBackStackEntry(Routes.ITEMS) }
-            val vm: RegistryViewModel = viewModel(viewModelStoreOwner = homeEntry, factory = RegistryViewModel.factory(tokens))
+            val vm: RegistryViewModel = viewModel(
+                viewModelStoreOwner = homeEntry,
+                factory = RegistryViewModel.factory(
+                    tokens = tokens,
+                    demoApi = if (demoMode) FakeApiService() else null,
+                ),
+            )
             val uiState by vm.detailState.collectAsState()
             val signedOut by vm.signedOut.collectAsState()
 

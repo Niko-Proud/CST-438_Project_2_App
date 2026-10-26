@@ -42,7 +42,9 @@ class GoogleAuthManager(context: Context) : AuthProvider {
 
     override suspend fun handleResult(data: Intent?): String {
         if (data == null) throw IllegalStateException("Sign in was cancelled.")
-        AuthorizationException.fromIntent(data)?.let { throw IllegalStateException(it.errorDescription ?: "Sign in failed.") }
+        AuthorizationException.fromIntent(data)?.let {
+            throw IllegalStateException(it.errorDescription ?: "Sign in failed.")
+        }
         val response = AuthorizationResponse.fromIntent(data)
             ?: throw IllegalStateException("Sign in was cancelled.")
 
@@ -51,7 +53,9 @@ class GoogleAuthManager(context: Context) : AuthProvider {
                 val idToken = tokens?.idToken
                 when {
                     idToken != null -> cont.resume(idToken)
-                    ex != null -> cont.resumeWithException(IllegalStateException(ex.errorDescription ?: "Sign in failed."))
+                    ex != null -> cont.resumeWithException(
+                        IllegalStateException(ex.errorDescription ?: "Sign in failed."),
+                    )
                     else -> cont.resumeWithException(IllegalStateException("Google did not return an ID token."))
                 }
             }
