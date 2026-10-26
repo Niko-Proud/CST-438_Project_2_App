@@ -130,6 +130,9 @@ class ManageUsersViewModelTest {
  */
 private class FakeUsersApi : BrainwormApiService {
 
+    override suspend fun connectGoogleAccount(token: String): Response<UserDto> =
+        error("Not used in user-loading tests.")
+
     val requestedPages = mutableListOf<Int>()
     var failOnPage: Int? = null
 

@@ -8,6 +8,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.recallapp.auth.AuthProvider
 import com.example.recallapp.auth.TokenStore
+import com.example.recallapp.data.BrainwormApiService
+import com.example.recallapp.data.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,10 +23,11 @@ data class LoginUiState(
     val signedIn: Boolean = false,
 )
 
-/** Runs Google sign in and saves the ID token. */
+/** Runs Google sign in, links the account on the API, and then saves the ID token. */
 class LoginViewModel(
     private val auth: AuthProvider,
     private val tokens: TokenStore,
+    private val api: BrainwormApiService,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginUiState(signedIn = tokens.isSignedIn))
@@ -46,7 +49,19 @@ class LoginViewModel(
     fun onAuthResult(data: Intent?) {
         viewModelScope.launch {
             try {
-                tokens.save(auth.handleResult(data))
+                val idToken = auth.handleResult(data)
+                // The backend creates or finds its user record before we enter the app.
+                // Saving the token only after this succeeds prevents a half-finished login.
+                val response = api.connectGoogleAccount("Bearer $idToken")
+
+                check(response.isSuccessful) {
+                    "Could not connect your account (HTTP ${response.code()}). Please try again."
+                }
+                checkNotNull(response.body()) {
+                    "The API returned no account information. Please try again."
+                }
+
+                tokens.save(idToken)
                 _state.update { it.copy(loading = false, signedIn = true) }
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = e.message ?: "Sign in failed. Please try again.") }
@@ -59,8 +74,12 @@ class LoginViewModel(
         const val NOT_CONFIGURED = "Google sign in is not set up yet. Add GOOGLE_CLIENT_ID to local.properties."
 
         /** Factory that passes the sign in provider and token store to the ViewModel. */
-        fun factory(auth: AuthProvider, tokens: TokenStore): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LoginViewModel(auth, tokens) }
+        fun factory(
+            auth: AuthProvider,
+            tokens: TokenStore,
+            api: BrainwormApiService = RetrofitClient.instance,
+        ): ViewModelProvider.Factory = viewModelFactory {
+            initializer { LoginViewModel(auth, tokens, api) }
         }
     }
 }

@@ -72,6 +72,7 @@ private val SoftBox = Color(0xFFF5F7FA)
  * When isCreatingNew is true it is an empty form for adding a new item. Deleting is done from the list.
  */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun RegistryDetailScreen(
     uiState: DetailUiState,
     isCreatingNew: Boolean,
@@ -124,8 +125,43 @@ fun RegistryDetailScreen(
                             style = MaterialTheme.typography.titleMedium,
                         )
                     }
-                    OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(12.dp)) {
-                        Text("Go back", color = Lab.Ink, style = MaterialTheme.typography.labelLarge)
+                    if (isCreatingNew) {
+                        // Keep the form visible after a failed add so users can correct
+                        // the entry or retry without typing the food back in.
+                        Text(
+                            "Your information is still here. Check it and try again.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Lab.Muted,
+                        )
+                        Section(title = "FOOD INFO", color = SoftBox) {
+                            FormField("Product Name", productInput) { productInput = it }
+                            FormField("Batch Number (Optional)", batchInput) { batchInput = it }
+                            Text(
+                                "The batch number is usually printed near the date on the package.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Lab.Muted,
+                            )
+                        }
+                        Button(
+                            onClick = { onSaveClick(productInput.trim(), batchInput.trim()) },
+                            enabled = productInput.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Lab.TealDark,
+                                contentColor = Color.White,
+                            ),
+                        ) {
+                            Text("Try again", style = MaterialTheme.typography.labelLarge)
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = onBack,
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Text("Go back", color = Lab.Ink, style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
                 is DetailUiState.Success -> {

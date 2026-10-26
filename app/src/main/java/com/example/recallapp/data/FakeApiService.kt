@@ -16,6 +16,9 @@ class FakeApiService : BrainwormApiService {
     )
     private var nextId = 5L
 
+    override suspend fun connectGoogleAccount(token: String): Response<UserDto> =
+        Response.success(UserDto(1L, "demo-user", false))
+
     override suspend fun deleteMyAccount(token: String): Response<Unit> {
         items.clear()
         return Response.success(Unit)
